@@ -153,6 +153,7 @@ def main() :
          n_workers = 10
          logging.info(" Starting a cluster.")
          cluster = start_Dask_cluster()
+         logging.info(f" Cluster: {cluster}")
          cluster.scale(n_workers)
          client = Client(cluster)
 
