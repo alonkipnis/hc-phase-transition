@@ -96,6 +96,16 @@ def evaluate_iteration(n = 10, N = 10, ep = .1, mu = 1, xi = 0, metric = 'Hellin
             'HC' : hc, 'minPv' : MinPv}
 
 
+from dask_jobqueue import SLURMCluster
+import os
+def start_Dask_cluster() :
+        return  SLURMCluster(n_workers=1, # use cluster.scale(n_workers) later on
+                queue = 'owners',  # partition (-p). Other options are 'donoho', 'hns'
+                walltime='0:30:00', # When workers reach their walltime they are restarte
+                cores=32,          # total number of cores
+                memory="4GB",      # not sure if per worker or in total
+                local_directory=os.environ['SCRATCH']  # optional
+                )
 
 def dist_run(client, df, func, npartitions=4) :
     ddf = dd.from_pandas(df, npartitions=npartitions)
@@ -116,7 +126,8 @@ def main() :
     parser = argparse.ArgumentParser(description='Run two-sample HC phase transition experiment')
     parser.add_argument('-o', type=str, help='output file', default='results.csv')
     parser.add_argument('-params', type=str, help='yaml parameters file.', default='params.yaml')
-    parser.add_argument('--local', action='store_true')
+    parser.add_argument('--no-dask', action='store_true')
+    parser.add_argument('--start-cluster', action='store_true')
     args = parser.parse_args()
     #
     param_file = args.params
@@ -127,22 +138,29 @@ def main() :
     df = pd.DataFrame(gen_params(**params))
     logging.info(f" Setting up an experiment with {len(df)} configurations.")
 
-    if args.local :
+    if args.no_dask :
         
         y = df.apply(lambda row : evaluate_iteration(n=row['n'], N=row['N'],
                                                              ep=row['ep'], mu=row['mu'], 
                                                              xi=row['xi'], metric='Hellinger'
                                                             ), axis=1)
         df_res = pd.json_normalize(y)
+ 
+    else :
+      logging.info(" Using Dask.")
+      if args.start_cluster :
+         n_workers = 10
+         logging.info(" Starting a cluster.")
+         cluster = start_Dask_cluster()
+         cluster.scale(n_workers)
+         client = Client(cluster)
 
-    else : # using Dask
-        logging.info(" Running using dask.")
-        
+      else : # using Dask
+        logging.info(" No cluster.")
         client = Client()
         
-        df['metric'] = 'Hellinger'
-
-        df_res = dist_run(client, df.iloc[:,1:], evaluate_iteration)
+    df['metric'] = 'Hellinger'
+    df_res = dist_run(client, df.iloc[:,1:], evaluate_iteration)
         
     logging.info(f" Saving results to {args.o}...")
     results = pd.concat([df, df_res], axis=1)
