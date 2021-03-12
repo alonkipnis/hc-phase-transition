@@ -124,19 +124,21 @@ def main() :
     with open(param_file) as file:
         params = yaml.load(file, Loader=yaml.FullLoader)
         
+    df = pd.DataFrame(gen_params(**params))
+    logging.info(f" Setting up an experiment with {len(df)} configurations.")
+
     if args.local :
-        df = pd.DataFrame(gen_params)
+        
         y = df.apply(lambda row : evaluate_iteration(n=row['n'], N=row['N'],
                                                              ep=row['ep'], mu=row['mu'], 
                                                              xi=row['xi'], metric='Hellinger'
                                                             ), axis=1)
+        df_res = pd.json_normalize(y)
 
     else : # using Dask
         logging.info(" Running using dask.")
         
         client = Client()
-
-        df = pd.DataFrame(gen_params(**params))
         
         df['metric'] = 'Hellinger'
 

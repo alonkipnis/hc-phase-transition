@@ -1,6 +1,6 @@
-nMonte : 1
-len_r : 29
-len_beta : 27
+nMonte : 10
+len_r : 11
+len_beta : 13
 N : 10000
 lo_n : 
   - 1000
