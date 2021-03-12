@@ -10,3 +10,4 @@ dask*
 
 #results
 *.csv
+*.out
