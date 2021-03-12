@@ -5,6 +5,8 @@ Higher Criticism in two-sample testing of large multinomials from
 - [1] Donoho. D. and Kipnis. A. (2020) Two sample testing for large, sparse high dimensional multinomials under rare and weak perturbations. 
 
 ## Instruction for running without Dask:
+- install `requirements.txt'
+- run
 ``$ python3 hc_phase_diagram_Dask.py --local``
 
 ## Instructions for running with Dask ([https://dask.org/]):
