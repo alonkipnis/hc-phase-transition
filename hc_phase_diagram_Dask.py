@@ -147,6 +147,7 @@ def main() :
         df_res = pd.json_normalize(y)
  
     else :
+      cluster=None
       logging.info(" Using Dask.")
       if args.start_cluster :
          n_workers = 10
@@ -158,10 +159,12 @@ def main() :
       else : # using Dask
         logging.info(" No cluster.")
         client = Client()
-        
-    df['metric'] = 'Hellinger'
-    df_res = dist_run(client, df.iloc[:,1:], evaluate_iteration)
-        
+      
+      logging.info(f" client info: {client}") 
+      df['metric'] = 'Hellinger'
+      df_res = dist_run(client, df.iloc[:,1:], evaluate_iteration)
+      if cluster :
+         cluster.close()
     logging.info(f" Saving results to {args.o}...")
     results = pd.concat([df, df_res], axis=1)
     results.to_csv(args.o)
