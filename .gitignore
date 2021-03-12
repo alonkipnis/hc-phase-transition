@@ -2,6 +2,9 @@
 env*
 .env*
 
+.ipynb_checkpoints
+*checkpoints
+
 #dask
 dask*
 
