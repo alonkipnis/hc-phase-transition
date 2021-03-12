@@ -96,44 +96,51 @@ def evaluate_iteration(n = 10, N = 10, ep = .1, mu = 1, xi = 0, metric = 'Hellin
             'HC' : hc, 'minPv' : MinPv}
 
 
+
+def dist_run(client, df, func, npartitions=4) :
+    ddf = dd.from_pandas(df, npartitions=npartitions)
+    logging.info(" Connecting to dask server...")
+    # compute
+    
+    # x = ddf.apply(lambda row : evaluate_iteration(n=row['n'], N=row['N'], ep=row['ep'],
+    #                                         mu=row['mu'], xi=row['xi'], metric='Hellinger'
+    #                                                       ), axis=1, meta=dict)
+    #x = ddf.apply(lambda row : evaluate_iteration(*row), axis=1, meta=dict)
+    x = ddf.apply(lambda row : evaluate_iteration(*row), axis=1, meta=dict)
+    logging.info(" Sending futures...")
+    y = x.compute()
+    return pd.json_normalize(y)
+
 def main() :
     
     parser = argparse.ArgumentParser(description='Run two-sample HC phase transition experiment')
     parser.add_argument('-o', type=str, help='output file', default='results.csv')
-    parser.add_argument('-n', type=int, help='number of Monte Carlo iterations', default=1)
     parser.add_argument('-params', type=str, help='yaml parameters file.', default='params.yaml')
-    parser.add_argument('--test', action='store_true')
+    parser.add_argument('--local', action='store_true')
     args = parser.parse_args()
     #
-    if args.test :
-        df = pd.DataFrame(gen_params(nMonte=args.n))
+    param_file = args.params
+    logging.info(f" Reading parameters from {param_file}:")
+    with open(param_file) as file:
+        params = yaml.load(file, Loader=yaml.FullLoader)
+        
+    if args.local :
+        df = pd.DataFrame(gen_params)
         y = df.apply(lambda row : evaluate_iteration(n=row['n'], N=row['N'],
                                                              ep=row['ep'], mu=row['mu'], 
                                                              xi=row['xi'], metric='Hellinger'
                                                             ), axis=1)
 
-    else :
-        param_file = args.params
-        logging.info(f" Reading parameters from {param_file}:")
-        with open(param_file) as file:
-            params = yaml.load(file, Loader=yaml.FullLoader)
-        
+    else : # using Dask
         logging.info(" Running using dask.")
         
-        df = pd.DataFrame(gen_params(**params))
-        ddf = dd.from_pandas(df, npartitions=4)
-        
-        logging.info(" Connecting to dask server...")
         client = Client()
-        # compute
+
+        df = pd.DataFrame(gen_params(**params))
         
-        x = ddf.apply(lambda row : evaluate_iteration(n=row['n'], N=row['N'], ep=row['ep'],
-                                                mu=row['mu'], xi=row['xi'], metric='Hellinger'
-                                                              ), axis=1, meta=dict)
-        logging.info(" Sending futures...")
-        y = x.compute()
-        
-    df_res = pd.json_normalize(y)
+        df['metric'] = 'Hellinger'
+
+        df_res = dist_run(client, df.iloc[:,1:], evaluate_iteration)
         
     logging.info(f" Saving results to {args.o}...")
     results = pd.concat([df, df_res], axis=1)

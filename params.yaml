@@ -1,4 +1,4 @@
-nMonte : 5
+nMonte : 1
 len_r : 29
 len_beta : 27
 N : 10000
@@ -9,4 +9,3 @@ lo_n :
 lo_xi :
   - .0
   - .5
-  - 1.0
